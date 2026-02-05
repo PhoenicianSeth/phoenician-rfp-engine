@@ -12,13 +12,23 @@ type View = 'dashboard' | 'research' | 'library' | 'proposals';
 export default function App() {
     const [activeView, setActiveView] = useState<View>('dashboard');
     const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
+    const [researchContext, setResearchContext] = useState<string>('');
+
+    const handleCreateProject = (project: { name: string, files: File[] }) => {
+        // In a real app, we would upload these files to the backend here.
+        // For now, we'll create a text context from the file names to simulate analysis.
+        const context = `Project: ${project.name}\nFiles Uploaded:\n${project.files.map(f => `- ${f.name} (${(f.size / 1024).toFixed(1)} KB)`).join('\n')}`;
+        setResearchContext(context);
+        setIsNewProjectModalOpen(false);
+        setActiveView('research');
+    };
 
     const renderView = () => {
         switch (activeView) {
             case 'dashboard':
                 return <Dashboard />;
             case 'research':
-                return <ResearchAgent />;
+                return <ResearchAgent initialContext={researchContext} />;
             case 'library':
                 return <ContentLibrary />;
             case 'proposals':
@@ -47,6 +57,7 @@ export default function App() {
             <NewProjectModal
                 isOpen={isNewProjectModalOpen}
                 onClose={() => setIsNewProjectModalOpen(false)}
+                onCreate={handleCreateProject}
             />
         </div>
     );

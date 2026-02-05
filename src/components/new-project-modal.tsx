@@ -4,9 +4,10 @@ import { X, Sparkles, Upload, FileText, Trash2 } from 'lucide-react';
 interface NewProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onCreate: (project: { name: string, files: File[] }) => void;
 }
 
-export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
+export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalProps) {
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -31,8 +32,8 @@ export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
   };
 
   const handleCreate = () => {
-    // Mock submission
     console.log("Creating proposal with files:", files);
+    onCreate({ name: "New Project", files });
     onClose();
   };
 

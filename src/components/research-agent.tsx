@@ -3,12 +3,18 @@ import { Bot, Send, User, Loader2, Sparkles } from 'lucide-react';
 import { queryAgent } from '../lib/ai-service';
 import type { ChatMessage } from '../lib/ai-service';
 
-export function ResearchAgent() {
+interface ResearchAgentProps {
+  initialContext?: string;
+}
+
+export function ResearchAgent({ initialContext }: ResearchAgentProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
       role: 'agent',
-      content: `Hello! I'm your **RFP Research Architect**. I'm ready to analyze your RFP documentation. \n\nYou can ask me to:\n- **Analyze Compliance**: "Check for mandatory requirements"\n- **Find Win Themes**: "What is the client's strategic focus?"\n- **Draft Strategy**: "Suggest a ghosting strategy against competitors"`,
+      content: initialContext
+        ? `Hello! I see you've started a new project. I've analyzed the following context:\n\n${initialContext}\n\nI'm ready to help you specific questions about these documents.`
+        : `Hello! I'm your **RFP Research Architect**. I'm ready to analyze your RFP documentation. \n\nYou can ask me to:\n- **Analyze Compliance**: "Check for mandatory requirements"\n- **Find Win Themes**: "What is the client's strategic focus?"\n- **Draft Strategy**: "Suggest a ghosting strategy against competitors"`,
       timestamp: new Date()
     }
   ]);
@@ -39,7 +45,7 @@ export function ResearchAgent() {
     setIsTyping(true);
 
     try {
-      const response = await queryAgent(input, "Current RFP Context");
+      const response = await queryAgent(input, initialContext || "Current RFP Context");
       const agentMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'agent',
