@@ -1,18 +1,20 @@
-import { useState } from 'react';
-import { 
-  Bold, 
-  Italic, 
-  Underline, 
-  AlignLeft, 
-  AlignCenter, 
+import { useState, useRef } from 'react';
+import {
+  Bold,
+  Italic,
+  Underline,
+  AlignLeft,
+  AlignCenter,
   AlignRight,
   List,
   ListOrdered,
   ChevronRight,
   Clock,
   Download,
-  Share2
+  Share2,
+  Loader2
 } from 'lucide-react';
+import html2pdf from 'html2pdf.js';
 
 interface Version {
   id: number;
@@ -30,6 +32,30 @@ const versions: Version[] = [
 
 export function ProposalEditor() {
   const [versionsPanelOpen, setVersionsPanelOpen] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const handleExportPDF = async () => {
+    if (!contentRef.current) return;
+    setIsExporting(true);
+
+    const element = contentRef.current;
+    const opt = {
+      margin: [0.5, 0.5] as [number, number],
+      filename: 'Phoenix_Transportation_Proposal.pdf',
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+
+    try {
+      await html2pdf().set(opt).from(element).save();
+    } catch (err) {
+      console.error("PDF Export failed:", err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   return (
     <div className="flex-1 ml-[260px] min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30 flex">
@@ -45,15 +71,19 @@ export function ProposalEditor() {
                 </h1>
                 <p className="text-sm text-gray-500">Last edited 5 minutes ago</p>
               </div>
-              
+
               <div className="flex items-center gap-3">
                 <button className="px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors flex items-center gap-2 text-gray-700">
                   <Share2 className="w-4 h-4" />
                   Share
                 </button>
-                <button className="px-6 py-2 bg-gradient-to-r from-[#7C3AED] to-[#a855f7] text-white rounded-xl hover:shadow-lg hover:shadow-purple-500/50 transition-all font-medium flex items-center gap-2">
-                  <Download className="w-4 h-4" />
-                  Export PDF
+                <button
+                  onClick={handleExportPDF}
+                  disabled={isExporting}
+                  className="px-6 py-2 bg-gradient-to-r from-[#7C3AED] to-[#a855f7] text-white rounded-xl hover:shadow-lg hover:shadow-purple-500/50 transition-all font-medium flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                  {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                  {isExporting ? 'Exporting...' : 'Export PDF'}
                 </button>
               </div>
             </div>
@@ -98,17 +128,17 @@ export function ProposalEditor() {
         <div className="flex-1 overflow-y-auto py-12 px-8">
           <div className="max-w-4xl mx-auto">
             {/* Paper-like Container */}
-            <div className="bg-white rounded-2xl shadow-2xl shadow-gray-300/30 border border-gray-200 aspect-[8.5/11] p-16">
+            <div ref={contentRef} className="bg-white rounded-2xl shadow-2xl shadow-gray-300/30 border border-gray-200 aspect-[8.5/11] p-16">
               <div className="prose prose-lg max-w-none">
                 <h1 className="text-3xl font-semibold text-[#001A38] mb-6">
                   Executive Summary
                 </h1>
-                
+
                 <p className="text-gray-700 leading-relaxed mb-4">
                   Phoenician Solutions is pleased to submit this comprehensive proposal in response to the City of Phoenix's Request for Proposal for Transportation Services. Our team brings over 15 years of experience in managing and optimizing municipal transit systems across the Southwest region.
                 </p>
 
-                <p className="text-gray-700 leading-relaxed mb-6">
+                <p className="text-gray-700 leading-relaxed mb-4">
                   This proposal outlines our innovative approach to modernizing Phoenix's transportation infrastructure while maintaining full compliance with all DBE requirements, environmental standards, and technical specifications detailed in the RFP.
                 </p>
 
@@ -149,9 +179,8 @@ export function ProposalEditor() {
 
       {/* Version History Sidebar */}
       <div
-        className={`border-l border-gray-200 bg-white transition-all duration-300 ${
-          versionsPanelOpen ? 'w-[320px]' : 'w-0 overflow-hidden'
-        }`}
+        className={`border-l border-gray-200 bg-white transition-all duration-300 ${versionsPanelOpen ? 'w-[320px]' : 'w-0 overflow-hidden'
+          }`}
       >
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
@@ -168,11 +197,10 @@ export function ProposalEditor() {
             {versions.map((version, index) => (
               <div
                 key={version.id}
-                className={`p-4 rounded-xl border transition-all cursor-pointer ${
-                  index === 0
-                    ? 'bg-gradient-to-br from-purple-50 to-blue-50 border-[#7C3AED] shadow-md'
-                    : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                }`}
+                className={`p-4 rounded-xl border transition-all cursor-pointer ${index === 0
+                  ? 'bg-gradient-to-br from-purple-50 to-blue-50 border-[#7C3AED] shadow-md'
+                  : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                  }`}
               >
                 <div className="flex items-start justify-between mb-2">
                   <h4 className="font-medium text-[#001A38] text-sm">{version.name}</h4>

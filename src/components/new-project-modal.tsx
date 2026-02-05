@@ -1,14 +1,21 @@
 import { useState, useRef } from 'react';
 import { X, Sparkles, Upload, FileText, Trash2 } from 'lucide-react';
 
+export interface UploadedFile {
+  name: string;
+  gcsUri: string;
+  mimeType: string;
+}
+
 interface NewProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreate: (project: { name: string, files: File[] }) => void;
+  onCreate: (project: { name: string, files: UploadedFile[] }) => void;
 }
 
 export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalProps) {
   const [files, setFiles] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
@@ -31,10 +38,40 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
     setFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleCreate = () => {
-    console.log("Creating proposal with files:", files);
-    onCreate({ name: "New Project", files });
-    onClose();
+  const handleCreate = async () => {
+    setIsUploading(true);
+    try {
+      const uploadedFiles: UploadedFile[] = [];
+
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch('http://127.0.0.1:3001/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          uploadedFiles.push({
+            name: data.fileName,
+            gcsUri: data.gcsUri,
+            mimeType: data.mimeType
+          });
+        }
+      }
+
+      console.log("Creating proposal with uploaded files:", uploadedFiles);
+      onCreate({ name: "New Project", files: uploadedFiles });
+      onClose();
+      setFiles([]); // Reset
+    } catch (error) {
+      console.error("Upload failed", error);
+      alert("Failed to upload files. Please try again.");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -209,9 +246,10 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
             </button>
             <button
               onClick={handleCreate}
-              className="px-6 py-3 bg-gradient-to-r from-[#7C3AED] to-[#a855f7] text-white rounded-xl hover:shadow-lg hover:shadow-purple-500/50 transition-all font-medium"
+              disabled={isUploading}
+              className="px-6 py-3 bg-gradient-to-r from-[#7C3AED] to-[#a855f7] text-white rounded-xl hover:shadow-lg hover:shadow-purple-500/50 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Create Proposal
+              {isUploading ? 'Uploading...' : 'Create Proposal'}
             </button>
           </div>
         </div>

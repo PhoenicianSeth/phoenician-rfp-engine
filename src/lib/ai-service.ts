@@ -5,14 +5,19 @@ export interface ChatMessage {
     timestamp: Date;
 }
 
-export async function queryAgent(message: string, context: string = ''): Promise<string> {
+export interface FilePart {
+    mimeType: string;
+    gcsUri: string;
+}
+
+export async function queryAgent(message: string, context: string = '', fileParts?: FilePart[]): Promise<string> {
     try {
-        const response = await fetch('http://localhost:3001/api/research', {
+        const response = await fetch('http://127.0.0.1:3001/api/research', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ message, context }),
+            body: JSON.stringify({ message, context, fileParts }),
         });
 
         if (!response.ok) {

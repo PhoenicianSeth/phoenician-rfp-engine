@@ -9,16 +9,62 @@ import { Plus } from 'lucide-react';
 
 type View = 'dashboard' | 'research' | 'library' | 'proposals';
 
+import type { UploadedFile } from './components/new-project-modal';
+import type { FilePart } from './lib/ai-service';
+
+// ...
+
 export default function App() {
     const [activeView, setActiveView] = useState<View>('dashboard');
     const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
     const [researchContext, setResearchContext] = useState<string>('');
+    const [fileParts, setFileParts] = useState<FilePart[]>([]);
 
-    const handleCreateProject = (project: { name: string, files: File[] }) => {
-        // In a real app, we would upload these files to the backend here.
-        // For now, we'll create a text context from the file names to simulate analysis.
-        const context = `Project: ${project.name}\nFiles Uploaded:\n${project.files.map(f => `- ${f.name} (${(f.size / 1024).toFixed(1)} KB)`).join('\n')}`;
+    const handleCreateProject = async (project: { name: string, files: UploadedFile[] }) => {
+        let libraryContext = '';
+        let libraryParts: FilePart[] = [];
+
+        try {
+            // Fetch ALL files from Content Library
+            const res = await fetch('http://127.0.0.1:3001/api/files');
+            if (res.ok) {
+                const allFiles = await res.json();
+
+                const assetFiles = allFiles.filter((f: any) => f.category === 'assets');
+                const historicalFiles = allFiles.filter((f: any) => f.category === 'historical');
+
+                // Build detailed context instructions
+                if (assetFiles.length > 0) {
+                    libraryContext += `\n\n[PHOENICIAN ASSETS]\nUse these documents as the SOURCE OF TRUTH for company capabilities, standard descriptions, and technical specifications:\n${assetFiles.map((f: any) => `- ${f.name}`).join('\n')}`;
+                }
+
+                if (historicalFiles.length > 0) {
+                    libraryContext += `\n\n[HISTORICAL PROPOSALS]\nUse these documents purely for TONE, STYLE, and FORMATTING reference. Do not copy their specific project details, but emulate their persuasive voice:\n${historicalFiles.map((f: any) => `- ${f.name}`).join('\n')}`;
+                }
+
+                // Combine all files for the AI to "read"
+                libraryParts = [...assetFiles, ...historicalFiles].map((f: any) => ({
+                    mimeType: f.type || 'application/pdf',
+                    gcsUri: f.gcsUri
+                }));
+            }
+        } catch (error) {
+            console.error("Failed to fetch library assets:", error);
+        }
+
+        // Create context string
+        const context = `CURRENT PROJECT: ${project.name}\n\n[NEW RFP DOCUMENTS]\nAnalyze these files to understand the specific requirements for this proposal:\n${project.files.map(f => `- ${f.name}`).join('\n')}${libraryContext}`;
         setResearchContext(context);
+
+        // Map Project Files to FileParts
+        const projectParts: FilePart[] = project.files.map(f => ({
+            mimeType: f.mimeType,
+            gcsUri: f.gcsUri
+        }));
+
+        // Combine Project Files + Library Assets
+        setFileParts([...projectParts, ...libraryParts]);
+
         setIsNewProjectModalOpen(false);
         setActiveView('research');
     };
@@ -28,7 +74,7 @@ export default function App() {
             case 'dashboard':
                 return <Dashboard />;
             case 'research':
-                return <ResearchAgent initialContext={researchContext} />;
+                return <ResearchAgent initialContext={researchContext} fileParts={fileParts} />;
             case 'library':
                 return <ContentLibrary />;
             case 'proposals':

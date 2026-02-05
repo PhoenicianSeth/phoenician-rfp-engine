@@ -1,26 +1,66 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bot, Send, User, Loader2, Sparkles } from 'lucide-react';
 import { queryAgent } from '../lib/ai-service';
-import type { ChatMessage } from '../lib/ai-service';
+import type { ChatMessage, FilePart } from '../lib/ai-service';
 
 interface ResearchAgentProps {
   initialContext?: string;
+  fileParts?: FilePart[];
 }
 
-export function ResearchAgent({ initialContext }: ResearchAgentProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 'welcome',
-      role: 'agent',
-      content: initialContext
-        ? `Hello! I see you've started a new project. I've analyzed the following context:\n\n${initialContext}\n\nI'm ready to help you specific questions about these documents.`
-        : `Hello! I'm your **RFP Research Architect**. I'm ready to analyze your RFP documentation. \n\nYou can ask me to:\n- **Analyze Compliance**: "Check for mandatory requirements"\n- **Find Win Themes**: "What is the client's strategic focus?"\n- **Draft Strategy**: "Suggest a ghosting strategy against competitors"`,
-      timestamp: new Date()
-    }
-  ]);
+export function ResearchAgent({ initialContext, fileParts }: ResearchAgentProps) {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null); // Added scrollAreaRef
+  const hasStartedRef = useRef(false); // Added hasStartedRef
+
+  // Auto-Start Analysis for New Projects
+  useEffect(() => {
+    const startAutoAnalysis = async () => {
+      // Only auto-start if initialContext is provided, no messages yet, and it hasn't started before
+      if (initialContext && messages.length === 0 && !hasStartedRef.current) {
+        hasStartedRef.current = true; // Mark as started to prevent re-triggering
+        setIsTyping(true);
+
+        // Add system greeting message
+        const systemMsg: ChatMessage = {
+          id: 'init',
+          role: 'agent',
+          content: "I have received your RFP documents and Content Library assets. I am now analyzing the requirements, synthesizing a strategy, and generating your initial draft proposal. This may take a moment...",
+          timestamp: new Date(),
+        };
+        setMessages([systemMsg]);
+
+        try {
+          const prompt = "Please act as the Lead Proposal Architect. Synthesize the provided RFP documents (requirements) and the Content Library (assets/historical data). 1) Identify the key winning themes. 2) Outline the proposal structure. 3) Draft the Executive Summary and Key Methodology sections. Ensure the tone is compliant, competitive, and compelling.";
+
+          const response = await queryAgent(prompt, initialContext, fileParts);
+
+          setMessages(prev => [...prev, {
+            id: Date.now().toString(),
+            role: 'agent',
+            content: response,
+            timestamp: new Date()
+          }]);
+        } catch (error) {
+          console.error(error);
+          // Optionally add an error message to the chat
+          setMessages(prev => [...prev, {
+            id: Date.now().toString(),
+            role: 'agent',
+            content: "An error occurred during analysis. Please try again or provide more details.",
+            timestamp: new Date()
+          }]);
+        } finally {
+          setIsTyping(false);
+        }
+      }
+    };
+
+    startAutoAnalysis();
+  }, [initialContext, messages.length, fileParts]); // Dependencies for the effect
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -45,7 +85,7 @@ export function ResearchAgent({ initialContext }: ResearchAgentProps) {
     setIsTyping(true);
 
     try {
-      const response = await queryAgent(input, initialContext || "Current RFP Context");
+      const response = await queryAgent(input, initialContext || "Current RFP Context", fileParts);
       const agentMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'agent',
